@@ -1,0 +1,91 @@
+/* ── Design tokens ──
+   Retheme a site by editing this block (and the fonts in index.html). */
+:root {
+  --color-bg: #ffffff;
+  --color-bg-alt: #f5f7fa;
+  --color-surface: #ffffff;
+  --color-text: #1b2430;
+  --color-text-muted: #5b6675;
+  --color-border: #dde2e9;
+  --color-primary: #1f3a5f;
+  --color-primary-hover: #16294a;
+  --color-on-primary: #ffffff;
+  --color-accent: #c9a46a;
+
+  --font-heading: 'Playfair Display', Georgia, serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+
+  --radius: 10px;
+  --shadow: 0 2px 12px rgba(20, 30, 50, 0.08);
+  --container: 1120px;
+  --nav-height: 68px;
+}
+
+/* ── Reset ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--font-body);
+  background: var(--color-bg);
+  color: var(--color-text);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+img { display: block; max-width: 100%; }
+a { color: inherit; }
+ul { list-style: none; }
+button, input, textarea { font: inherit; color: inherit; }
+
+h1, h2, h3 { font-family: var(--font-heading); line-height: 1.2; }
+h1 { font-size: clamp(2rem, 5vw, 3.25rem); }
+h2 { font-size: clamp(1.5rem, 3vw, 2.1rem); }
+h3 { font-size: 1.2rem; }
+
+:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+
+/* ── Layout helpers ── */
+.container { width: 100%; max-width: var(--container); margin: 0 auto; padding: 0 20px; }
+.container-narrow { max-width: 760px; }
+.main { flex: 1; }
+.section { padding: 72px 0; }
+.section-alt { background: var(--color-bg-alt); }
+.section-title { margin-bottom: 32px; text-align: center; }
+.section-link { margin-top: 28px; text-align: center; font-weight: 500; }
+.grid { display: grid; gap: 24px; }
+.grid-3 { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+.lead { font-size: 1.15rem; color: var(--color-text-muted); max-width: 60ch; }
+.eyebrow { text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.8rem; font-weight: 600; color: var(--color-accent); margin-bottom: 12px; }
+.placeholder { background: repeating-linear-gradient(45deg, var(--color-bg-alt), var(--color-bg-alt) 12px, var(--color-border) 12px, var(--color-border) 13px); }
+
+/* ── Buttons ── */
+.btn {
+  display: inline-block;
+  padding: 12px 24px;
+  border-radius: var(--radius);
+  border: 1.5px solid transparent;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+.btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn-primary { background: var(--color-primary); color: var(--color-on-primary); }
+.btn-primary:hover:not(:disabled) { background: var(--color-primary-hover); }
+.btn-outline { border-color: var(--color-primary); color: var(--color-primary); }
+.btn-outline:hover { background: var(--color-primary); color: var(--color-on-primary); }
+.btn-light { background: #fff; color: var(--color-primary); }
+.btn-light:hover { background: var(--color-bg-alt); }
+
+/* ── Card ── */
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 28px;
+  box-shadow: var(--shadow);
+}
+.card h3 { margin-bottom: 8px; }
+.card p { color: var(--color-text-muted); }

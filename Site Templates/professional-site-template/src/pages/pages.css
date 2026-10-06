@@ -1,0 +1,46 @@
+/* ── Shared page header ── */
+.page-header { background: var(--color-bg-alt); padding: 64px 0 48px; }
+.page-header .lead { margin-top: 12px; }
+.page-header .btn { margin-top: 24px; }
+
+/* ── Home ── */
+.hero { background: linear-gradient(135deg, var(--color-bg-alt), #e8edf4); padding: 96px 0; }
+.hero-inner { display: grid; gap: 20px; justify-items: start; }
+.hero-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 8px; }
+
+/* ── About ── */
+.about-grid { display: grid; gap: 40px; grid-template-columns: 1fr; align-items: start; }
+.about-image { width: 100%; aspect-ratio: 4 / 5; object-fit: cover; border-radius: var(--radius); }
+.prose { display: grid; gap: 16px; font-size: 1.05rem; color: var(--color-text-muted); }
+@media (min-width: 800px) { .about-grid { grid-template-columns: 1fr 1.2fr; } }
+
+/* ── Services ── */
+.service-card { display: flex; flex-direction: column; gap: 12px; }
+.service-price { font-family: var(--font-heading); font-size: 1.6rem; color: var(--color-primary) !important; }
+.check-list { display: grid; gap: 8px; margin-top: 4px; }
+.check-list li { padding-left: 26px; position: relative; }
+.check-list li::before { content: '✓'; position: absolute; left: 0; color: var(--color-accent); font-weight: 700; }
+
+/* ── Gallery ── */
+.gallery-grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+.gallery-item { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: var(--radius); }
+
+/* ── Contact ── */
+.contact-grid { display: grid; gap: 48px; grid-template-columns: 1fr; align-items: start; }
+@media (min-width: 800px) { .contact-grid { grid-template-columns: 1fr 1.2fr; } }
+.contact-info h2 { margin-bottom: 20px; }
+.contact-list { display: grid; gap: 16px; }
+.contact-list li { display: grid; gap: 2px; }
+.contact-list strong { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--color-text-muted); }
+.form { display: grid; gap: 18px; }
+.form label { display: grid; gap: 6px; font-weight: 500; }
+.form input, .form textarea {
+  padding: 12px 14px;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  resize: vertical;
+}
+.form input:focus, .form textarea:focus { border-color: var(--color-primary); outline: none; }
+.form .btn { justify-self: start; }
+.form-error { color: #b3261e; }
