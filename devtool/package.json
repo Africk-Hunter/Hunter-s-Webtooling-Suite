@@ -1,11 +1,27 @@
 {
   "name": "webtool-devtool",
   "version": "0.1.0",
-  "private": true,
+  "description": "Dev-only Vite plugin that overlays modular site-building tools (resize, inspect, typography, colors, ...) and writes changes back to source.",
   "type": "module",
   "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "files": [
+    "src",
+    "tools",
+    "README.md"
+  ],
+  "keywords": [
+    "vite",
+    "vite-plugin",
+    "devtools"
+  ],
+  "license": "UNLICENSED",
   "scripts": {
-    "test": "node --test"
+    "test": "node --test",
+    "prepublishOnly": "npm test",
+    "release": "npm version patch --no-git-tag-version && npm publish"
   },
   "dependencies": {
     "postcss": "^8.4.47"
