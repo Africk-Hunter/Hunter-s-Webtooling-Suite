@@ -37,6 +37,7 @@ export function lineDiff(before, after) {
 }
 
 export function createServerContext(root) {
+  const projectRoot = path.resolve(root)
   const srcDir = path.join(root, 'src')
   const historyDir = path.join(root, '.webtool', 'history')
 
@@ -55,6 +56,18 @@ export function createServerContext(root) {
     return abs
   }
 
+  const resolveProject = (rel) => {
+    const abs = path.resolve(projectRoot, rel)
+    if (abs !== projectRoot && !abs.startsWith(projectRoot + path.sep)) throw new Error('path outside project')
+    return abs
+  }
+
+  const resolveHistoryFile = (rel) => {
+    if (rel.startsWith('src/')) return resolveProject(rel)
+    if (rel === 'index.html') return resolveProject(rel)
+    return resolveSrc(rel)
+  }
+
   const persist = (entry) => {
     fs.mkdirSync(historyDir, { recursive: true })
     fs.writeFileSync(path.join(historyDir, entry.id + '.json'), JSON.stringify(entry))
@@ -71,7 +84,7 @@ export function createServerContext(root) {
     undo(id) {
       const e = history.get(id)
       if (e.undone) throw new Error('already undone')
-      const abs = resolveSrc(e.file)
+      const abs = resolveHistoryFile(e.file)
       if (fs.readFileSync(abs, 'utf8') !== e.after) {
         throw new Error(`${e.file} changed since this edit (newer edit or manual change); undo newer changes first`)
       }
@@ -83,7 +96,7 @@ export function createServerContext(root) {
     redo(id) {
       const e = history.get(id)
       if (!e.undone) throw new Error('not undone')
-      const abs = resolveSrc(e.file)
+      const abs = resolveHistoryFile(e.file)
       if (fs.readFileSync(abs, 'utf8') !== e.before) {
         throw new Error(`${e.file} changed since the undo; can't redo safely`)
       }
@@ -99,10 +112,9 @@ export function createServerContext(root) {
     },
   }
 
-  /** Write a source file and record it. `file` is absolute; meta: { tool, label }. */
+  /** Write a project file and record it. `file` must remain inside the project root. */
   function write(file, content, meta = {}) {
-    const abs = path.resolve(file)
-    resolveSrc(path.relative(srcDir, abs)) // must be inside src/
+    const abs = resolveProject(path.relative(projectRoot, path.resolve(file)))
     const before = fs.readFileSync(abs, 'utf8')
     if (before === content) return
     fs.writeFileSync(abs, content)
@@ -111,7 +123,7 @@ export function createServerContext(root) {
       ts: Date.now(),
       tool: meta.tool ?? 'unknown',
       label: meta.label ?? 'edit',
-      file: norm(path.relative(srcDir, abs)),
+      file: norm(path.relative(projectRoot, abs)),
       before,
       after: content,
       undone: false,
@@ -233,6 +245,55 @@ export function createServerContext(root) {
       if (!updated.length) throw new Error('none of the selected color tokens were found in :root')
       return { file: updated[0], files: updated }
     },
+
+    setTypographyTokens(values, meta = {}) {
+      if (!values || typeof values !== 'object' || Array.isArray(values)
+        || !Object.keys(values).length || Object.keys(values).length > 100) {
+        throw new Error('no typography token changes supplied')
+      }
+      for (const [name, value] of Object.entries(values)) {
+        if (!/^--(?:font|size)-[\w-]+$/.test(name)) throw new Error(`invalid typography token: ${name}`)
+        if (typeof value !== 'string' || value.length > 300 || !SAFE_VALUE.test(value) || !value.trim()) {
+          throw new Error(`invalid token value for ${name}`)
+        }
+      }
+      const files = css.files()
+      if (!files.length) throw new Error('no css files under src/')
+      const parsed = files.map((file) => ({ file, ast: postcss.parse(fs.readFileSync(file, 'utf8')) }))
+      const found = new Set()
+      for (const { ast } of parsed) {
+        ast.walkRules((rule) => {
+          if (rule.parent.type !== 'root' || rule.selector.trim() !== ':root') return
+          rule.walkDecls((decl) => {
+            if (!Object.hasOwn(values, decl.prop)) return
+            decl.value = values[decl.prop]
+            found.add(decl.prop)
+          })
+        })
+      }
+      const missing = Object.keys(values).filter((name) => !found.has(name))
+      if (missing.length) {
+        let target = parsed.find(({ file }) => path.basename(file) === 'index.css') ?? parsed[0]
+        let rootRule = target.ast.nodes.find((node) => node.type === 'rule' && node.selector.trim() === ':root')
+        if (!rootRule) {
+          rootRule = postcss.rule({ selector: ':root' })
+          target.ast.prepend(rootRule)
+        }
+        for (const name of missing) rootRule.append({ prop: name, value: values[name] })
+      }
+      const updated = []
+      for (const { file, ast } of parsed) {
+        const before = fs.readFileSync(file, 'utf8')
+        const after = ast.toString()
+        if (before === after) continue
+        write(file, after, {
+          tool: meta.tool ?? 'typography-tokens',
+          label: meta.label ?? Object.entries(values).map(([name, value]) => `${name}: ${value}`).join(', '),
+        })
+        updated.push(norm(path.relative(srcDir, file)))
+      }
+      return { file: updated[0], files: updated }
+    },
   }
 
   const source = {
@@ -242,7 +303,12 @@ export function createServerContext(root) {
     abs: resolveSrc,
   }
 
+  const project = {
+    abs: resolveProject,
+    rel: (abs) => norm(path.relative(projectRoot, abs)),
+  }
+
   const fsRead = { read: (abs) => fs.readFileSync(abs, 'utf8') }
 
-  return { root, srcDir, css, source, fs: fsRead, write, history }
+  return { root: projectRoot, srcDir, css, source, project, fs: fsRead, write, history }
 }

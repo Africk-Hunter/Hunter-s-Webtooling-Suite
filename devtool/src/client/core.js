@@ -20,6 +20,7 @@
 //   api.responsive                  { setViewport(width, media), media, width, close() }
 //   api.preview                     { set(el, prop, value), decls(el), reset(el?), commit(el) } — staged inline edits
 //   api.toast(text)
+//   api.deactivate()                turn off the active tool
 //   api.on(event, fn)               'scroll' | 'resize' | 'select' | 'write' ; returns off()
 //                                   'write' fires when any rpc result contains { file } (a source write/undo)
 
@@ -50,6 +51,18 @@ const STYLE = `
 .panel .typography-measure .unit{color:#9aa0a6}
 .panel .typography-measure button{padding:2px 6px}
 .panel .typography-measure .drag{cursor:ns-resize;touch-action:none}
+.panel .type-scale,.panel .type-tokens{margin:8px 0;border-top:1px solid #3a3f47;padding-top:7px}
+.panel .type-scale summary,.panel .type-tokens summary{cursor:pointer;color:#e8eaed;margin-bottom:5px}
+.panel .scale-sample{padding:5px 0;border-bottom:1px solid #30343b}
+.panel .scale-sample small{display:block;color:#9aa0a6;font-size:10px}
+.panel .scale-sample span{display:block;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.panel .type-token-row{gap:4px}
+.panel .type-token-row label{width:94px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.panel .type-token-row input{flex:1;width:0}
+.panel .clamp-helper{margin:8px 0;padding:8px;background:#202329;border-radius:4px}
+.panel .clamp-helper>input{width:100%;margin:5px 0}
+.panel .clamp-helper .row{align-items:center}
+.panel .clamp-helper .row input{min-width:0}
 .panel .spacing-group{margin:8px 0}
 .panel .spacing-title{margin-bottom:4px;color:#9aa0a6}
 .panel .spacing-edge{display:flex;align-items:center;gap:4px;margin:3px 0}
@@ -310,6 +323,9 @@ export function boot(tools) {
       toastEl.style.display = 'block'
       clearTimeout(toastTimer)
       toastTimer = setTimeout(() => (toastEl.style.display = 'none'), 2500)
+    },
+    deactivate() {
+      if (current === tool) deactivate()
     },
     on: api_on,
   })

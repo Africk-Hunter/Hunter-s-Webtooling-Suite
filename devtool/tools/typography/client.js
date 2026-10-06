@@ -17,7 +17,14 @@ const rgbToHex = (rgb) => {
   return m ? '#' + m.slice(0, 3).map((n) => Math.round(+n).toString(16).padStart(2, '0')).join('') : '#000000'
 }
 
-let api, box, el, tokens = [], measures = {}
+let api, box, el, measures = {}
+let fontTokens = [], sizeTokens = [], scaleRoot, tokenInline = {}
+
+const GOOGLE_FONTS = [
+  'DM Sans', 'Inter', 'Lato', 'Manrope', 'Merriweather', 'Montserrat',
+  'Nunito', 'Open Sans', 'Oswald', 'Playfair Display', 'Poppins',
+  'Roboto', 'Source Sans 3', 'Work Sans',
+]
 
 function measureValue(prop, value) {
   const match = String(value).trim().match(/^(-?(?:\d+\.?\d*|\.\d+))(px|rem|em|%)?$/)
@@ -56,6 +63,137 @@ function syncApplyButton() {
   button?.classList.toggle('ready', Object.keys(api.preview.decls(el)).length > 0)
 }
 
+function scaleMarkup() {
+  return `<details class="type-scale">
+    <summary>Heading scale preview</summary>
+    <div class="row"><label>base size</label><input class="scale-base" type="number" min="8" max="48" value="16"><span>px</span></div>
+    <div class="row"><label>ratio</label><select class="scale-ratio"><option value="1.125">1.125 · Minor third</option><option value="1.2">1.2 · Minor third+</option><option value="1.25" selected>1.25 · Major third</option><option value="1.333">1.333 · Perfect fourth</option><option value="1.5">1.5 · Perfect fifth</option></select></div>
+    <div class="scale-samples"></div>
+  </details>`
+}
+
+function renderScalePreview() {
+  const panel = api.panel.el
+  const samples = panel.querySelector('.scale-samples')
+  if (!samples) return
+  const base = Math.min(48, Math.max(8, Number(panel.querySelector('.scale-base').value) || 16))
+  const ratio = Number(panel.querySelector('.scale-ratio').value)
+  samples.innerHTML = [1, 2, 3, 4, 5, 6].map((heading) => {
+    const size = base * ratio ** (4 - heading)
+    return `<div class="scale-sample"><small>H${heading} · ${size.toFixed(1)}px</small><span style="font-size:${size}px">A thoughtful type scale</span></div>`
+  }).join('')
+}
+
+function tokenMarkup() {
+  return `<details class="type-tokens">
+    <summary>Site-wide font & size tokens</summary>
+    <div class="muted">Changes preview across the page; Apply saves them in :root.</div>
+    ${[...new Map([...fontTokens, ...sizeTokens].map((token) => [token.name, token])).values()]
+      .map(({ name, value = '', kind }) => `<div class="row type-token-row" data-name="${esc(name)}">
+        <label title="${esc(name)}">${esc(name)}</label>
+        <input class="type-token" data-original="${esc(value)}" value="${esc(value)}" aria-label="${esc(name)}">
+      </div>`).join('')}
+    <div class="clamp-helper">
+      <div class="muted">Create a fluid size token (px values)</div>
+      <input class="clamp-name" placeholder="--size-heading">
+      <div class="row"><input class="clamp-min" type="number" value="24" aria-label="Minimum size in pixels"><span>to</span><input class="clamp-max" type="number" value="48" aria-label="Maximum size in pixels"></div>
+      <div class="row"><input class="clamp-vmin" type="number" value="360" aria-label="Minimum viewport width"><span>to</span><input class="clamp-vmax" type="number" value="1280" aria-label="Maximum viewport width"><span>px viewport</span></div>
+      <button class="s make-clamp" type="button">Add clamp() token</button>
+    </div>
+    <div class="row"><button class="apply-tokens">Apply token changes</button></div>
+    <div class="muted token-msg"></div>
+  </details>`
+}
+
+function setupTypographyExtras(panel) {
+  renderScalePreview()
+  panel.querySelector('.scale-base').addEventListener('input', renderScalePreview)
+  panel.querySelector('.scale-ratio').addEventListener('input', renderScalePreview)
+  for (const input of panel.querySelectorAll('.type-token')) {
+    const row = input.closest('.type-token-row')
+    const name = row.dataset.name
+    input.addEventListener('input', () => {
+      api.preview.set(scaleRoot, name, input.value === input.dataset.original ? tokenInline[name] : input.value)
+      panel.querySelector('.apply-tokens').classList.toggle('ready', Object.keys(api.preview.decls(scaleRoot)).length > 0)
+    })
+  }
+  panel.querySelector('.make-clamp').onclick = () => {
+    const name = panel.querySelector('.clamp-name').value.trim()
+    const min = Number(panel.querySelector('.clamp-min').value)
+    const max = Number(panel.querySelector('.clamp-max').value)
+    const minViewport = Number(panel.querySelector('.clamp-vmin').value)
+    const maxViewport = Number(panel.querySelector('.clamp-vmax').value)
+    if (!/^--(?:font|size)-[\w-]+$/.test(name) || ![min, max, minViewport, maxViewport].every(Number.isFinite)
+      || min < 1 || max <= min || minViewport < 240 || maxViewport <= minViewport || maxViewport > 3000) {
+      panel.querySelector('.token-msg').textContent = 'Use a --font-* or --size-* token, increasing size values, and a valid viewport range.'
+      return
+    }
+    const slope = (max - min) * 100 / (maxViewport - minViewport)
+    const intercept = min - slope * minViewport / 100
+    const preferred = `calc(${intercept.toFixed(3)}px + ${slope.toFixed(3)}vw)`
+    const value = `clamp(${min}px, ${preferred}, ${max}px)`
+    let input = [...panel.querySelectorAll('.type-token-row')].find((row) => row.dataset.name === name)?.querySelector('.type-token')
+    if (!input) {
+      const row = document.createElement('div')
+      row.className = 'row type-token-row'
+      row.dataset.name = name
+      row.innerHTML = `<label title="${esc(name)}">${esc(name)}</label><input class="type-token" aria-label="${esc(name)}">`
+      panel.querySelector('.clamp-helper').before(row)
+      input = row.querySelector('.type-token')
+      input.addEventListener('input', () => {
+        api.preview.set(scaleRoot, name, input.value)
+        panel.querySelector('.apply-tokens').classList.toggle('ready', Object.keys(api.preview.decls(scaleRoot)).length > 0)
+      })
+    }
+    input.value = value
+    input.dataset.original = ''
+    api.preview.set(scaleRoot, name, value)
+    panel.querySelector('.apply-tokens').classList.toggle('ready', true)
+    panel.querySelector('.token-msg').textContent = `${name}: ${value}`
+  }
+  panel.querySelector('.apply-tokens').onclick = async () => {
+    const values = api.preview.decls(scaleRoot)
+    if (!Object.keys(values).length) return (panel.querySelector('.token-msg').textContent = 'Nothing changed.')
+    try {
+      const result = await api.rpc('applyTokens', { values })
+      api.preview.commit(scaleRoot)
+      for (const row of panel.querySelectorAll('.type-token-row')) {
+        const input = row.querySelector('.type-token')
+        input.dataset.original = input.value
+        tokenInline[row.dataset.name] = scaleRoot.style.getPropertyValue(row.dataset.name)
+      }
+      panel.querySelector('.apply-tokens').classList.remove('ready')
+      panel.querySelector('.token-msg').textContent = result.files.length
+        ? `Updated token(s) in ${result.files.join(', ')}`
+        : 'No token values changed.'
+    } catch (error) {
+      panel.querySelector('.token-msg').textContent = 'Error: ' + error.message
+    }
+  }
+  panel.querySelector('.google-font-load').onclick = async () => {
+    const family = panel.querySelector('.google-font').value
+    if (!family) return
+    const button = panel.querySelector('.google-font-load')
+    button.disabled = true
+    try {
+      const result = await api.rpc('applyGoogleFont', {
+        family,
+        selector: panel.querySelector('.scope').value,
+        media: api.responsive.media,
+        decls: api.preview.decls(el),
+      })
+      api.preview.commit(el)
+      panel.querySelector('.msg').textContent = result.unchanged
+        ? `${family} was already loaded; applied typography to ${result.cssFile}.`
+        : `Loaded ${family} and applied typography to ${result.file}.`
+    } catch (error) {
+      panel.querySelector('.msg').textContent = 'Error: ' + error.message
+    } finally {
+      button.disabled = false
+    }
+  }
+}
+
 const tool = {
   id: 'typography',
   name: 'Typography',
@@ -65,16 +203,28 @@ const tool = {
     api = a
     box = api.box({ outline: '2px solid #bf5af2' })
     api.panel.set('<div class="muted">Click text to style it.</div>')
-    try { tokens = await api.rpc('tokens') } catch { tokens = [] }
+    try {
+      const result = await api.rpc('tokens')
+      fontTokens = result.fonts
+      sizeTokens = result.sizes
+    } catch {
+      fontTokens = []
+      sizeTokens = []
+    }
   },
 
   onSelect(target) {
     api.preview.reset(el)
+    api.preview.reset(scaleRoot)
     el = target
     box.follow(el)
+    scaleRoot = el.ownerDocument.documentElement
+    tokenInline = Object.fromEntries(
+      [...fontTokens, ...sizeTokens].map(({ name }) => [name, scaleRoot.style.getPropertyValue(name)]),
+    )
     const cs = getComputedStyle(el)
     const scopes = api.selectorCandidates(el)
-    const fam = tokens.map((t) => `<option value="var(${t})">${t}</option>`).join('')
+    const fam = fontTokens.map(({ name }) => `<option value="var(${esc(name)})">${esc(name)}</option>`).join('')
     measures = {}
     api.panel.set(`<b>Typography</b>
       <div class="muted" style="margin-bottom:6px">${esc(cs.fontFamily.split(',')[0])}</div>
@@ -86,10 +236,15 @@ const tool = {
           : `<input data-p="${prop}" type="${kind === 'color' ? 'color' : 'text'}" value="${esc(kind === 'color' ? rgbToHex(cs.color) : cs[prop])}">`
       }</div>`).join('')}
       <div class="row"><label>font</label><select data-p="font-family" style="flex:1"><option value="">(unchanged)</option>${fam}</select></div>
+      <div class="row"><label>Google font</label><select class="google-font" style="flex:1"><option value="">Choose family…</option>${GOOGLE_FONTS.map((font) => `<option>${esc(font)}</option>`).join('')}</select></div>
+      <div class="row"><button class="s google-font-load" type="button">Load Google Font & preview</button></div>
       <div class="row"><label>apply to</label><select class="scope" style="flex:1">${scopes.map(({ selector, label }) => `<option value="${esc(selector)}">${esc(label)}</option>`).join('')}</select></div>
+      ${tokenMarkup()}
+      ${scaleMarkup()}
       <div class="row"><button class="apply">Apply to CSS</button><button class="s reset">Reset</button></div>
       <div class="muted msg"></div>`)
     const p = api.panel.el, msg = p.querySelector('.msg')
+    setupTypographyExtras(p)
     p.querySelectorAll('[data-p]').forEach((input) => {
       const prop = input.dataset.p
       const initial = input.value
@@ -144,6 +299,8 @@ const tool = {
     api.preview.reset()
     box?.destroy()
     el = null
+    scaleRoot = null
+    tokenInline = {}
   },
 }
 

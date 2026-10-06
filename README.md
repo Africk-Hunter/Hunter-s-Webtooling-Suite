@@ -34,6 +34,7 @@ npm run dev
 | Colors | Alt+K | Preview and write `--color-*` theme tokens |
 | Responsive | Alt+V | Preview mobile, tablet, and desktop widths |
 | Content | Alt+C | Write rendered text changes back to TSX source |
+| DevConsole | Alt+D | View console output and runtime errors in a filterable, collapsible panel dockable to any viewport edge |
 
 Use the toolbar’s **↔ / ↕** control to switch between horizontal and vertical layouts. Responsive preview docks the tools vertically on the left.
 

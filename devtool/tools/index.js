@@ -19,4 +19,5 @@ export const builtinTools = [
   { id: 'colors', client: path.join(here, 'colors', 'client.js'), server: colorsServer },
   { id: 'responsive', client: path.join(here, 'responsive', 'client.js'), server: {} },
   { id: 'content', client: path.join(here, 'content', 'client.js'), server: contentServer },
+  { id: 'devconsole', client: path.join(here, 'devconsole', 'client.js'), server: {} },
 ]

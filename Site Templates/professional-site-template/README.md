@@ -18,6 +18,8 @@ Home, About, Services (with pricing cards), Gallery, FAQ (accordion), Contact (f
 6. Copy `.env.example` to `.env` and fill in the EmailJS keys. The EmailJS template should use the variables `name`, `email`, `phone`, `message`.
 7. Deploy to Netlify (`netlify.toml` includes the SPA redirect).
 
+For the full pre-launch checklist (SEO, OG image, EmailJS env vars, deployment, accessibility, handoff), see **[LAUNCH-CHECKLIST.md](LAUNCH-CHECKLIST.md)**.
+
 ## Adding a page
 
 1. Create `src/pages/MyPage.tsx`.

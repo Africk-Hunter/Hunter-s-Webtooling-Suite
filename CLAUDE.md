@@ -17,7 +17,7 @@ Tools that help Hunter build websites faster. Two parts:
 ## Architecture (devtool)
 - `src/index.js` — Vite plugin (`apply: 'serve'` only). Serves virtual modules (`virtual:webtool/entry|core|tool/<id>`), injects the entry script, and routes `POST /__webtool/rpc/<tool>/<method>` to the tool's server handler.
 - `src/client/core.js` — overlay shell in a shadow DOM: toolbar, shared element picking/hover, panel, highlight boxes, responsive iframe preview, selector candidates, toasts, RPC. Tools get an `api` object from it.
-- `src/server-context.js` — `ctx` passed to server handlers (`root`, `srcDir`, CSS discovery and writes, token writes, source helpers, and undoable history). CSS writes use PostCSS and can target an exact `@media` query.
+- `src/server-context.js` — `ctx` passed to server handlers (`root`, `srcDir`, project-root and source helpers, CSS discovery/writes, token writes, and undoable history). CSS writes use PostCSS and can target an exact `@media` query; project-root writes support undoable `index.html` font links.
 - `src/source-text.js` � finds/replaces an exact rendered string inside TS/TSX source (used by Content).
 - `tools/<id>/client.js` (default export tool object) + optional `server.js` (`export const server = { method(payload, ctx) }`), registered in `tools/index.js`. Built-ins: Resize, Inspect, History, Typography, Spacing, Colors, Responsive, and Content.
 - Full tool contract is documented at the top of `core.js` and in `devtool/README.md`.
@@ -32,4 +32,4 @@ Tools that help Hunter build websites faster. Two parts:
 - Match existing style: ES modules, no semicolons, single quotes, 2-space indent.
 
 ## Status / roadmap
-See `ROADMAP.md`. Built tools include core, Resize, Inspect, History (change log + undo), Typography, Content, Spacing, Colors, and Responsive. The `webtool-playground` template is available for manual testing; the end-to-end browser pass is still pending.
+See `ROADMAP.md`. Built tools include core, Resize, Inspect, History (change log + undo), Typography (Google Fonts, size/font tokens, fluid `clamp()` helper, heading scale, breakpoints), Content (safe inline rich text/source mapping), Spacing, Colors, Responsive, and DevConsole (captured runtime output with edge docking). The `webtool-playground` template is available for manual testing; the end-to-end browser pass is still pending.

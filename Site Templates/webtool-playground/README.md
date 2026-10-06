@@ -13,6 +13,7 @@ Toggle webtool with **Alt+W**. The playground has no production dependency on we
 
 - Repeated feature cards and pricing cards for selector scope and specificity.
 - Theme colors in `src/playground.css` under `:root` (`--color-*` tokens).
+- Type tokens can be added under `:root` (`--font-*`, `--size-*`) or generated with the Typography clamp helper.
 - Responsive navigation, grids, poster artwork, and form layout.
 - Text in `src/App.tsx` for the Content tool.
 

@@ -143,7 +143,7 @@ function App() {
           <form className="contact-form card" onSubmit={(event) => { event.preventDefault(); setSent(true) }}>
             <label>Your name<input name="name" placeholder="Avery Example" /></label>
             <label>Email address<input name="email" type="email" placeholder="avery@example.com" /></label>
-            <label>What’s on your mind?<textarea name="message" rows="4" placeholder="A little note goes here..." /></label>
+            <label>What’s on your mind?<textarea name="message" rows={4} placeholder="A little note goes here..." /></label>
             <div className="form-footer"><span>{sent ? 'Thanks for playing — your note is ready!' : 'No pressure. Just practice.'}</span><button className="button" type="submit">{sent ? 'Sent!' : 'Send a note'} <span>↗</span></button></div>
           </form>
         </section>
