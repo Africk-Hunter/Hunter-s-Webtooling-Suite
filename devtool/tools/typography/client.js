@@ -288,9 +288,13 @@ const tool = {
           decls,
           media: api.responsive.media,
         })
-        api.preview.commit(el)
+        const staged = api.preview.commit(el)
         syncApplyButton()
-        msg.textContent = `${r.created ? 'Added rule to' : 'Updated'} ${r.file}`
+        const text = `${r.created ? 'Added rule to' : 'Updated'} ${r.file}${r.warning ? '. ' + r.warning : ''}`
+        msg.textContent = text
+        staged.then((off) => {
+          if (off.length) msg.textContent = `${text}. Warning: ${off.join(', ')} did not change on the page; a more specific rule wins. Pick a more specific scope.`
+        })
       } catch (err) { msg.textContent = 'Error: ' + err.message }
     }
   },

@@ -7,7 +7,7 @@ npm install
 npm run dev
 ```
 
-Toggle webtool with **Alt+W**. The playground has no production dependency on webtool; the Vite plugin runs only during development.
+`npm run build` typechecks and builds for production. Toggle webtool with **Alt+W**. The playground has no production dependency on webtool; the Vite plugin runs only during development.
 
 ## Useful areas to experiment with
 

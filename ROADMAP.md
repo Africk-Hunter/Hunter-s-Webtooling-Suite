@@ -16,8 +16,9 @@
 
 ## Now / before launch
 - [ ] End-to-end browser pass for the existing tools; fix issues found during manual validation
-- [ ] Regression checks for server-side write safety and selector resolution
-- [ ] Tighten the project API so it is easier to adopt in additional templates
+- [x] Regression checks for server-side write safety (`devtool/test/write-safety.test.js`)
+- [x] Regression checks for selector resolution (`devtool/test/selectors.test.js`, jsdom; logic lives in `src/client/selectors.js`)
+- [x] Tighten the project API: typed, validated options (`srcDir`, `disable`, `tools`)
 
 ## Near-term
 - [x] Font family picker that writes Google Fonts `<link>` tags into `index.html` through undoable project-root writes
@@ -28,15 +29,15 @@
 - [x] Developer console panel with collapsible, dockable layout
 
 ## Later
-- [ ] Layout tweaks (flex/grid/gap/alignment, drag-reorder)
-- [ ] Component source jump (open `.tsx`/`.jsx` at the right line in VS Code)
-- [ ] A11y / contrast checker
-- [ ] Alignment guides and spacing ruler
-- [ ] Image swap + size warnings
-- [ ] SEO / meta panel
-- [ ] Snapshot before/after compare
-- [ ] More templates (portfolio, landing page, store)
-- [ ] Extract webtool into a standalone package for reuse across Vite projects
+- [x] Layout tweaks (flex/grid/gap/alignment in Spacing; drag-reorder in `devtool/tools/layout`)
+- [x] Component source jump (`devtool/tools/source`)
+- [x] A11y / contrast checker (`devtool/tools/a11y`)
+- [x] Alignment guides and spacing ruler (`devtool/tools/measure`)
+- [x] Image swap + size warnings (`devtool/tools/images`)
+- [x] SEO / meta panel (`devtool/tools/seo`)
+- [x] Snapshot before/after compare (`devtool/tools/snapshots`)
+- [x] More templates (portfolio, landing page, store)
+- [x] Extract webtool into a standalone package for reuse across Vite projects (`webtool-devtool` on npm, with CLI and bundled templates)
 
 ## Working principles
 - Spacing editor: drag margin and padding handles like browser devtools, then write them back to CSS.

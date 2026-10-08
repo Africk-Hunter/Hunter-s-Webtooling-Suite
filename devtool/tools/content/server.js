@@ -31,16 +31,14 @@ export const server = {
   replace({ text, to, html, file, line, start }, ctx) {
     if (typeof text !== 'string' || !text || typeof file !== 'string'
       || !Number.isInteger(line) || !Number.isInteger(start)) throw new Error('bad payload')
-    const known = occurrences(text, ctx).find((o) => o.file === file && o.line === line && o.start === start)
-    if (!known) throw new Error('text no longer at that location; reselect the element')
-    if (known.kind === 'jsx-rich' && typeof html !== 'string') throw new Error('rich text content is required')
-    if (known.kind !== 'jsx-rich' && (typeof to !== 'string' || !to.trim())) throw new Error('replacement text is required')
+    if (!/\.tsx?$/.test(file)) throw new Error('only .ts/.tsx files can be edited')
     const abs = ctx.source.abs(file)
     const content = fs.readFileSync(abs, 'utf8')
-    const match = findText(content, text, { jsx: abs.endsWith('.tsx') }).find((m) =>
-      m.line === line && m.kind === known.kind && m.start === known.start)
+    const match = findText(content, text, { jsx: abs.endsWith('.tsx') }).find((m) => m.line === line && m.start === start)
     if (!match) throw new Error('text no longer at that location; reselect the element')
-    const replacement = known.kind === 'jsx-rich' ? html : to.trim()
+    if (match.kind === 'jsx-rich' && typeof html !== 'string') throw new Error('rich text content is required')
+    if (match.kind !== 'jsx-rich' && (typeof to !== 'string' || !to.trim())) throw new Error('replacement text is required')
+    const replacement = match.kind === 'jsx-rich' ? html : to.trim()
     ctx.write(abs, replaceAt(content, match, replacement), {
       tool: 'content',
       label: `text "${text.slice(0, 30)}" → "${replacement.slice(0, 30)}"`,

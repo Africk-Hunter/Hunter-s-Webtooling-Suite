@@ -18,7 +18,9 @@
 //   api.selectorFor(el)             best-effort CSS selector for el
 //   api.selectorCandidates(el)      unique-element and reusable class selectors
 //   api.responsive                  { setViewport(width, media), media, width, close() }
-//   api.preview                     { set(el, prop, value), decls(el), reset(el?), commit(el) } — staged inline edits
+//   api.preview                     { set(el, prop, value), decls(el), reset(el?), commit(el) } — staged inline edits;
+//                                   commit drops the inline copies and returns a Promise of the props whose computed
+//                                   value still differs after the stylesheet update (empty = the write took effect)
 //   api.toast(text)
 //   api.deactivate()                turn off the active tool
 //   api.on(event, fn)               'scroll' | 'resize' | 'select' | 'write' ; returns off()
@@ -83,10 +85,16 @@ const STYLE = `
   padding:6px 12px;border-radius:6px;display:none;pointer-events:none}
 `
 
-export function boot(tools) {
+import { selectorFor, selectorCandidates } from 'virtual:webtool/selectors'
+
+export function boot(tools, { token = '' } = {}) {
   if (document.getElementById('__webtool_host')) return
   const host = document.createElement('div')
   host.id = '__webtool_host'
+  // Vertical toolbar on the left is the default; a saved horizontal choice wins.
+  let savedLayout = null
+  try { savedLayout = localStorage.getItem('webtool:layout') } catch { /* storage unavailable */ }
+  if (savedLayout !== 'horizontal') host.classList.add('vertical-menu')
   host.style.cssText = 'all:initial;position:fixed;inset:0;pointer-events:none;z-index:2147483647'
   const root = host.attachShadow({ mode: 'open' })
   root.innerHTML = `<style>${STYLE}</style><div class="bar"></div><div class="panel"></div><div class="toast"></div>`
@@ -102,96 +110,6 @@ export function boot(tools) {
   let previewFrame = null, previewWidth = null, previewMedia = null
   const isOurs = (el) => el === host || host.contains(el)
 
-  const selectorFor = (el) => {
-    const root = el.getRootNode()
-    const segmentFor = (node) => {
-      if (node.id) return `#${CSS.escape(node.id)}`
-      const classes = [...node.classList].map((c) => `.${CSS.escape(c)}`).join('')
-      const base = node.tagName.toLowerCase() + classes
-      const matchingSiblings = node.parentElement ? [...node.parentElement.children].filter((sibling) =>
-        sibling.tagName === node.tagName && [...node.classList].every((c) => sibling.classList.contains(c))) : []
-      if (matchingSiblings.length < 2) return base
-      const sameType = [...node.parentElement.children].filter((sibling) => sibling.tagName === node.tagName)
-      return `${base}:nth-of-type(${sameType.indexOf(node) + 1})`
-    }
-    const parts = []
-    for (let node = el; node && node.nodeType === Node.ELEMENT_NODE; node = node.parentElement) {
-      parts.unshift(segmentFor(node))
-      const candidate = parts.join(' > ')
-      if (root.querySelectorAll(candidate).length === 1) return candidate
-    }
-    return parts.join(' > ')
-  }
-
-  const selectorCandidates = (el) => {
-    const tag = el.tagName.toLowerCase()
-    const own = [...el.classList].map((c) => `.${CSS.escape(c)}`).join('') || tag
-    let parent = el.parentElement
-    while (parent && !parent.classList.length && parent !== el.ownerDocument.body) parent = parent.parentElement
-    const matchedRules = []
-    const collectRules = (rules, view) => {
-      for (const rule of rules) {
-        if (rule.selectorText) {
-          try {
-            if (el.matches(rule.selectorText)) matchedRules.push(rule.selectorText)
-          } catch (error) {
-            if (error.name !== 'SyntaxError') throw error
-          }
-        } else if (rule.conditionText && rule.cssRules) {
-          if (rule.type !== 4 || view.matchMedia(rule.conditionText).matches) collectRules(rule.cssRules, view)
-        } else if (rule.cssRules) {
-          collectRules(rule.cssRules, view)
-        }
-      }
-    }
-    for (const sheet of el.ownerDocument.styleSheets) {
-      if (sheet.disabled) continue
-      try { collectRules(sheet.cssRules, el.ownerDocument.defaultView) }
-      catch (error) {
-        if (error.name !== 'SecurityError') throw error
-      }
-    }
-    const specificity = (selector) => {
-      const branches = []
-      let depth = 0, start = 0
-      for (let index = 0; index < selector.length; index++) {
-        if (selector[index] === '(') depth++
-        else if (selector[index] === ')') depth--
-        else if (selector[index] === ',' && depth === 0) {
-          branches.push(selector.slice(start, index))
-          start = index + 1
-        }
-      }
-      branches.push(selector.slice(start))
-      return branches.map((branch) => {
-        const normalized = branch.replace(/:where\([^)]*\)/g, '')
-        const ids = (normalized.match(/#[\w-]+/g) ?? []).length
-        const classes = (normalized.match(/\.[\w-]+|\[[^\]]+\]|:(?!:)[\w-]+/g) ?? []).length
-        const types = (normalized.replace(/#[\w-]+|\.[\w-]+|\[[^\]]+\]|:{1,2}[\w-]+(?:\([^)]*\))?/g, '')
-          .match(/(?:^|[\s>+~])([a-z][\w-]*)/gi) ?? []).length
-        return [ids, classes, types]
-      }).sort((a, b) => b[0] - a[0] || b[1] - a[1] || b[2] - a[2])[0]
-    }
-    const existing = [...new Set(matchedRules)]
-      .map((selector) => ({ selector, specificity: specificity(selector) }))
-      .sort((a, b) => b.specificity[0] - a.specificity[0]
-        || b.specificity[1] - a.specificity[1]
-        || b.specificity[2] - a.specificity[2])
-    const candidates = [
-      { selector: selectorFor(el), label: 'This element only' },
-      ...existing.map(({ selector, specificity: score }) => ({
-        selector,
-        label: `CSS rule (${score.join(', ')}): ${selector}`,
-      })),
-      ...(el.classList.length ? [{ selector: own, label: `All ${own}` }] : []),
-      ...(parent?.classList.length ? [{
-        selector: `${[...parent.classList].map((c) => `.${CSS.escape(c)}`).join(' ')} ${own}`,
-        label: `Inside ${[...parent.classList].map((c) => `.${CSS.escape(c)}`).join(' ')}`,
-      }] : []),
-      { selector: tag, label: `Every <${tag}>` },
-    ]
-    return [...new Map(candidates.map((candidate) => [candidate.selector, candidate])).values()]
-  }
 
   const makeApi = (tool) => ({
     get selected() { return selected },
@@ -247,7 +165,11 @@ export function boot(tools) {
       },
     },
     rpc: async (method, payload = {}) => {
-      const res = await fetch(`/__webtool/rpc/${tool.id}/${method}`, { method: 'POST', body: JSON.stringify(payload) })
+      const res = await fetch(`/__webtool/rpc/${tool.id}/${method}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Webtool-Token': token },
+        body: JSON.stringify(payload),
+      })
       const data = await res.json()
       if (!data.ok) throw new Error(data.error)
       if (data.result?.file) emit('write', data.result) // a source file changed
@@ -313,8 +235,24 @@ export function boot(tools) {
         },
         /** Edits were saved to source: drop the inline copies, keep nothing. */
         commit(el) {
-          for (const p of orig.get(el)?.keys() ?? []) el.style.removeProperty(p)
+          const staged = [...(orig.get(el)?.keys() ?? [])]
+          const view = el.ownerDocument.defaultView
+          const expected = Object.fromEntries(staged.map((p) => [p, view.getComputedStyle(el).getPropertyValue(p)]))
+          for (const p of staged) el.style.removeProperty(p)
           orig.delete(el)
+          // Resolves with the props whose computed value still differs once the stylesheet update has landed
+          // (a more specific rule is winning, or the written rule never matched this element).
+          return new Promise((resolve) => {
+            const started = Date.now()
+            const check = () => {
+              if (!el.isConnected) return resolve([])
+              const computed = view.getComputedStyle(el)
+              const off = staged.filter((p) => computed.getPropertyValue(p) !== expected[p])
+              if (!off.length || Date.now() - started > 1500) return resolve(off)
+              setTimeout(check, 150)
+            }
+            setTimeout(check, 150)
+          })
         },
       }
     })(),
@@ -379,6 +317,7 @@ export function boot(tools) {
     layout.disabled = host.classList.contains('responsive-open')
     layout.onclick = () => {
       host.classList.toggle('vertical-menu')
+      try { localStorage.setItem('webtool:layout', host.classList.contains('vertical-menu') ? 'vertical' : 'horizontal') } catch { /* storage unavailable */ }
       renderBar()
     }
     buttons.push(layout)
@@ -441,7 +380,7 @@ export function boot(tools) {
     const left = r.left + (frameRect?.left ?? 0)
     const top = r.top + (frameRect?.top ?? 0)
     Object.assign(hover.style, { display: 'block', left: left + 'px', top: top + 'px', width: r.width + 'px', height: r.height + 'px' })
-    hoverTag.textContent = `${selectorFor(hoverEl)}  ${Math.round(r.width)}�${Math.round(r.height)}`
+    hoverTag.textContent = `${selectorFor(hoverEl)}  ${Math.round(r.width)}×${Math.round(r.height)}`
     hoverTag.style.top = r.top > 22 ? '-22px' : 'auto'
     hoverTag.style.bottom = r.top > 22 ? 'auto' : '-22px'
   }

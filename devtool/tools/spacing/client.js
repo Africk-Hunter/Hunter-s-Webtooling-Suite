@@ -142,9 +142,14 @@ export default {
           decls,
           media: api.responsive.media,
         })
-        api.preview.commit(el)
+        const staged = api.preview.commit(el)
         syncApplyButton()
-        panel.querySelector('.msg').textContent = `${result.created ? 'Added rule to' : 'Updated'} ${result.file}`
+        const msg = panel.querySelector('.msg')
+        const text = `${result.created ? 'Added rule to' : 'Updated'} ${result.file}${result.warning ? '. ' + result.warning : ''}`
+        msg.textContent = text
+        staged.then((off) => {
+          if (off.length) msg.textContent = `${text}. Warning: ${off.join(', ')} did not change on the page; a more specific rule wins. Pick a more specific scope.`
+        })
       } catch (error) {
         panel.querySelector('.msg').textContent = 'Error: ' + error.message
       }

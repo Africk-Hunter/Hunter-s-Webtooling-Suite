@@ -107,9 +107,13 @@ export default {
           decls,
           media: api.responsive.media,
         })
-        api.preview.commit(el) // stylesheet owns it now
+        const staged = api.preview.commit(el) // stylesheet owns it now
         syncApplyButton()
-        note(`${r.created ? 'Added rule to' : 'Updated'} ${r.file}`)
+        const text = `${r.created ? 'Added rule to' : 'Updated'} ${r.file}${r.warning ? '. ' + r.warning : ''}`
+        note(text)
+        staged.then((off) => {
+          if (off.length) note(`${text}. Warning: ${off.join(', ')} did not change on the page; a more specific rule wins. Pick a more specific scope.`)
+        })
         setTimeout(sync, 150)
       } catch (err) { note('Error: ' + err.message) }
     }

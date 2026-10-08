@@ -8,6 +8,18 @@ Distilled from the Biggest Little Media and Luna Lash & Beauty Co. sites, with a
 
 Home, About, Services (with pricing cards), Gallery, FAQ (accordion), Contact (form), 404.
 
+## Run it
+
+```sh
+npm install
+npm run dev        # dev server with the webtool overlay
+npm run typecheck  # TypeScript check only
+npm run build      # typecheck + production build into dist/
+npm run preview    # serve the production build
+```
+
+In dev, press **Alt+W** to toggle webtool (Resize Alt+R, Inspect Alt+I, History Alt+H, Typography Alt+T, Spacing Alt+S, Colors Alt+K, Responsive Alt+V, Content Alt+C). It is dev-only and never included in production builds. `webtool-devtool` is installed from `../../devtool`, so run `npm install` in `devtool/` first if that folder's dependencies are missing.
+
 ## Start a new site
 
 1. Copy this folder, then `npm install` and `npm run dev`.

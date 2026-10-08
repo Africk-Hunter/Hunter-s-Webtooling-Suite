@@ -1,7 +1,7 @@
 # webtool
 
 Dev-only Vite plugin that injects a modular overlay into your site. Toggle with **Alt+W**.
-Use the toolbar’s ↔/↕ button to switch between horizontal and vertical layouts; responsive preview automatically docks the tools vertically on the left.
+The toolbar is a vertical sidebar on the left by default. Use its ↔/↕ button to switch to a horizontal bar (the choice is remembered); responsive preview automatically docks the tools vertically on the left.
 
 ## Built-in tools
 | Tool | Hotkey | What it does |
@@ -13,10 +13,29 @@ Use the toolbar’s ↔/↕ button to switch between horizontal and vertical lay
 | Responsive | Alt+V | Preview the real page at mobile, tablet, or desktop widths; docks tools down the left and writes into the matching `@media` range |
 | Typography | Alt+T | Live-edit type styles, edit site-wide font/size tokens, generate fluid `clamp()` size tokens, preview a heading scale, and load/apply Google Fonts; supports breakpoint-specific writes |
 | Content | Alt+C | Edit plain text and inline bold/italic/underline/links; maps JSX entities and statically evaluable template literals back to `.ts`/`.tsx` source |
+| A11y | Alt+A | Scan for low contrast, missing alt text, skipped headings, small tap targets, unnamed links/buttons and unlabeled inputs; click an issue to highlight it |
+| Source | Alt+O | Find the JSX that rendered the selected element (React 18 dev) and open it in VS Code |
+| Layout | Alt+L | Drag a container's children to reorder them; the JSX in source is rewritten (undoable). Flex/grid, gap and alignment live in Spacing |
+| Measure | Alt+M | Pixel distances between elements, shared-edge alignment guides and a grid overlay |
+| Images | Alt+G | Oversized/blurry/large-file warnings; drop a replacement file onto an image to swap it in source |
+| SEO | Alt+E | Edit title, description, canonical and Open Graph tags in index.html with length hints and a result preview |
+| Snapshots | Alt+P | Capture the page before and after a change, then compare side by side, as a blend or as a pixel diff |
 | History | Alt+H | Every source write webtool made, with diffs and per-change undo and redo; copy a session summary |
 | DevConsole | Alt+D | Capture console output, runtime errors, and unhandled promise rejections; filter, clear, collapse, or dock to any edge |
 
-The toolbar’s **↔ / ↕** button switches between horizontal and vertical layouts. Responsive preview automatically docks the toolbar on the left.
+The toolbar’s **↔ / ↕** button switches between the default left sidebar and a horizontal bar (remembered per browser). Responsive preview automatically docks the toolbar on the left.
+
+## Options
+
+```js
+webtool({
+  srcDir: 'src',          // source folder relative to the project root (default 'src'); CSS/TS discovery and writes stay inside it
+  disable: ['devconsole'], // built-in tool ids to leave out
+  tools: [],              // extra tools: { id, client: '<abs path>', server? }
+  allowRemote: false,     // source writes are refused when `server.host` exposes the dev server; set true to allow other machines
+})
+```
+Invalid options throw at startup with a descriptive message. Types ship in `src/index.d.ts`.
 
 ## Writing a tool
 
@@ -39,7 +58,7 @@ export default {
   onSelect(el, api) {},                         // user clicked an element
 }
 ```
-`api`: `selected`, `select(el)`, `selectorFor(el)`, `rpc(method, payload)`, `deactivate()`, `panel.set(html|Node)` / `panel.clear()`, `box({outline, fill})` → `{follow(el), refresh(), hide(), destroy(), el}`, `preview` (`set(el, prop, value)`, `decls(el)`, `reset(el?)`, `commit(el)` — staged inline edits with rollback), `toast(text)`, `on('scroll'|'resize'|'select', fn)`, `root` (shadow root).
+`api`: `selected`, `select(el)`, `selectorFor(el)`, `rpc(method, payload)`, `deactivate()`, `panel.set(html|Node)` / `panel.clear()`, `box({outline, fill})` → `{follow(el), refresh(), hide(), destroy(), el}`, `preview` (`set(el, prop, value)`, `decls(el)`, `reset(el?)`, `commit(el)` — staged inline edits with rollback; `commit` returns a Promise of props whose computed value still differs after the stylesheet update, i.e. a more specific rule is winning), `toast(text)`, `on('scroll'|'resize'|'select', fn)`, `root` (shadow root).
 
 ### server.js
 ```js

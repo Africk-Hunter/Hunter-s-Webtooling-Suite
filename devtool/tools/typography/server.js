@@ -58,7 +58,7 @@ export const server = {
     const unchanged = html.includes(href)
     if (!unchanged) {
       const links = `<link rel="preconnect" href="https://fonts.googleapis.com">\n    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>\n    <link href="${href}" rel="stylesheet">`
-      html = html.replace(/<\/head\s*>/i, `${links}\n  </head>`)
+      html = html.replace(/<\/head\s*>/i, () => `${links}\n  </head>`)
       ctx.write(file, html, { tool: 'typography', label: `load Google Font ${family}` })
     }
     return { file: unchanged ? cssResult.file : ctx.project.rel(file), cssFile: cssResult.file, unchanged }
