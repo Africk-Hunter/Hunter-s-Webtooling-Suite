@@ -85,3 +85,23 @@ test('reorderPlan rejects looped, mixed-file and single children', () => {
   assert.match(reorderPlan([p(1, 1), p(2, 1, '/b.tsx')]).reason, /different files/)
   assert.equal(reorderPlan([p(1, 1), p(2, 1)]).ok, true)
 })
+
+test('apostrophes and quotes in JSX text inside expressions do not confuse the scanner', () => {
+  const src = [
+    'const A = () => (',
+    '  <ul>',
+    "    <li>{ok && <b>Don't</b>}</li>",
+    '    <li>two</li>',
+    '    <li>{items.map((x) => <i key={x}>"{x}" isn\'t</i>)}</li>',
+    '    <li>{a < b ? <>it\'s</> : null}</li>',
+    '  </ul>',
+    ')',
+    '',
+  ].join('\n')
+  const lines = src.split('\n')
+  const at = (n) => ({ line: n, column: lines[n - 1].indexOf('<') + 1 })
+  const out = reorderSiblings(src, [at(3), at(4), at(5), at(6)], 0, 3)
+  const order = out.split('\n').slice(2, 6).map((l) => l.trim().slice(0, 12))
+  assert.deepEqual(order, ['<li>two</li>', '<li>{items.m', '<li>{a < b ?', '<li>{ok && <'])
+  assert.equal(out.length, src.length)
+})

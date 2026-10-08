@@ -1,6 +1,8 @@
 // Selector helpers shared by the overlay core (served as virtual:webtool/selectors) and tests.
 // Pure DOM functions: no overlay state.
 
+const BROAD = 25 // a scope matching more elements than this is flagged in the picker
+
 export const selectorFor = (el) => {
   const root = el.getRootNode()
   const segmentFor = (node) => {
@@ -71,7 +73,10 @@ export const selectorCandidates = (el) => {
       return [ids, classes, types]
     }).sort((a, b) => b[0] - a[0] || b[1] - a[1] || b[2] - a[2])[0]
   }
+  // A bare `*` branch (resets like `*, ::before, ::after`) matches every element: editing it is never what a pick means.
+  const universal = (selector) => /(?:^|,)\s*\*\s*(?:,|$)/.test(selector)
   const existing = [...new Set(matchedRules)]
+    .filter((selector) => !universal(selector))
     .map((selector) => ({ selector, specificity: specificity(selector) }))
     .sort((a, b) => b.specificity[0] - a.specificity[0]
       || b.specificity[1] - a.specificity[1]
@@ -89,5 +94,13 @@ export const selectorCandidates = (el) => {
     }] : []),
     { selector: tag, label: `Every <${tag}>` },
   ]
-  return [...new Map(candidates.map((candidate) => [candidate.selector, candidate])).values()]
+  const root = el.getRootNode()
+  const countOf = (selector) => {
+    try { return root.querySelectorAll(selector).length } catch { return null }
+  }
+  return [...new Map(candidates.map((candidate) => [candidate.selector, candidate])).values()].map((candidate) => {
+    const matches = countOf(candidate.selector)
+    if (matches === null || matches <= 1) return { ...candidate, matches }
+    return { ...candidate, matches, label: `${candidate.label} (${matches} elements${matches > BROAD ? ', broad' : ''})` }
+  })
 }

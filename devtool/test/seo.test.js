@@ -73,6 +73,39 @@ test('apply writes index.html through history and can be undone', (t) => {
   assert.equal(fs.readFileSync(path.join(root, 'index.html'), 'utf8'), html)
 })
 
+test('a literal > inside an attribute value does not truncate the tag', () => {
+  const page = '<html><head>\n  <meta name="description" content="Fast > slow, always">\n  <title>T</title>\n</head></html>'
+  assert.equal(parseHead(page).description, 'Fast > slow, always')
+  const out = applyHead(page, { description: 'New text' })
+  assert.match(out, /<meta name="description" content="New text">\n {2}<title>/)
+  assert.doesNotMatch(out, /slow/)
+  assert.equal(applyHead(page, { description: '' }), '<html><head>\n  <title>T</title>\n</head></html>')
+})
+
+test('comments, scripts, svg titles in the body and other lookalikes are ignored', () => {
+  const page = `<html><head>
+  <!-- <title>Old</title> <meta name="description" content="old"> -->
+  <script>const t = '<title>Script</title>'; const m = '<meta name="description" content="js">'</script>
+  <style>/* <title>Style</title> */</style>
+  <title>Real</title>
+  <META NAME="Description" CONTENT="Real description">
+  <link rel="alternate canonical" href="https://x.dev/">
+</head><body><svg><title>Chart</title></svg></body></html>`
+  const v = parseHead(page)
+  assert.equal(v.title, 'Real')
+  assert.equal(v.description, 'Real description')
+  assert.equal(v.canonical, 'https://x.dev/')
+  const out = applyHead(page, { title: 'Changed' })
+  assert.match(out, /<title>Changed<\/title>/)
+  assert.match(out, /<!-- <title>Old<\/title>/)
+  assert.match(out, /<svg><title>Chart<\/title><\/svg>/)
+})
+
+test('entities decode once, including numeric ones', () => {
+  const v = parseHead('<head><title>Tom &amp;lt; &#39;Jerry&#39; &#x26; co</title></head>')
+  assert.equal(v.title, "Tom &lt; 'Jerry' & co")
+})
+
 test('seoHints flags missing and over-long metadata', () => {
   assert.equal(seoHints({ title: 'Fine', description: 'd'.repeat(100), 'og:image': '/a.png' }).length, 0)
   assert.equal(seoHints({}).length, 3)

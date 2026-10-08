@@ -2,12 +2,24 @@
 // A tiny JSX scanner finds each element's exact extent (no parser dependency); reordering only
 // proceeds when the elements are adjacent siblings separated by whitespace.
 
+/** Whether the `<` at `i`, inside a JS expression, opens a JSX element (not a comparison or a type argument). */
+function startsJsx(src, i) {
+  if (!/[A-Za-z>]/.test(src[i + 1] ?? '')) return false
+  let j = i - 1
+  while (j >= 0 && /\s/.test(src[j])) j--
+  if (j < 0) return true
+  if ('({[,?:&|=!>;'.includes(src[j])) return true
+  return /(?:^|[^\w$])return$/.test(src.slice(Math.max(0, j - 6), j + 1))
+}
+
 /** Skips a balanced `{ ... }` JSX expression starting at `i` (content[i] === '{'); returns the index after `}`. */
 function skipBraces(src, i) {
   let depth = 0
   for (; i < src.length; i++) {
     const ch = src[i]
-    if (ch === '"' || ch === "'") {
+    if (ch === '<' && startsJsx(src, i)) {
+      i = elementEnd(src, i) - 1 // JSX text inside an expression may hold quotes and apostrophes
+    } else if (ch === '"' || ch === "'") {
       for (i++; i < src.length && src[i] !== ch; i++) if (src[i] === '\\') i++
     } else if (ch === '`') {
       for (i++; i < src.length && src[i] !== '`'; i++) {

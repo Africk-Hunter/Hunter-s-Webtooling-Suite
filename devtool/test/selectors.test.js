@@ -62,3 +62,27 @@ test('specificity ignores :where() and takes the strongest comma branch', () => 
   assert.equal(rules[0].selector, 'h2, #page h2.title')
   assert.match(rules[0].label, /\(1, 1, 1\)/)
 })
+
+test('global * rules are not offered as an existing-rule scope', () => {
+  const css = '*, ::before, ::after { box-sizing: border-box } * { margin: 0 } section .title { color: red }'
+  const doc = setup('<section class="hero"><h2 class="title">Hi</h2></section>', css)
+  const rules = selectorCandidates(doc.querySelector('h2')).filter((c) => c.label.startsWith('CSS rule'))
+  assert.deepEqual(rules.map((c) => c.selector), ['section .title'])
+})
+
+test('each scope reports how many elements it affects, and broad ones are flagged', () => {
+  const items = Array.from({ length: 30 }, () => '<li class="item">x</li>').join('')
+  const doc = setup(`<ul class="list">${items}</ul><p class="item">solo</p>`)
+  const list = selectorCandidates(doc.querySelectorAll('li')[0])
+  assert.equal(list[0].matches, 1)
+  assert.equal(list[0].label, 'This element only')
+  const all = list.find((c) => c.selector === '.item')
+  assert.equal(all.matches, 31)
+  assert.match(all.label, /\(31 elements, broad\)/)
+  const tag = list.find((c) => c.selector === 'li')
+  assert.match(tag.label, /\(30 elements, broad\)/)
+  const small = selectorCandidates(doc.querySelector('p'))
+  assert.match(small.find((c) => c.selector === '.item').label, /\(31 elements, broad\)/)
+  const few = setup('<div class="a"><i class="x">1</i><i class="x">2</i></div>')
+  assert.match(selectorCandidates(few.querySelector('i')).find((c) => c.selector === '.x').label, /All \.x \(2 elements\)$/)
+})

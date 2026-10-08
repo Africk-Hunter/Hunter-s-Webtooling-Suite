@@ -14,21 +14,75 @@ const FIELDS = [
 export const SEO_KEYS = FIELDS.map((f) => f.key)
 
 const escAttr = (v) => v.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-const unesc = (v) => v.replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')
-const escRe = (v) => v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+// One pass so "&amp;lt;" decodes to "&lt;" and not "<".
+const ENTITIES = { quot: '"', apos: "'", lt: '<', gt: '>', amp: '&', nbsp: ' ' }
+const unesc = (v) => v.replace(/&(#x[\da-f]+|#\d+|quot|apos|lt|gt|amp|nbsp);/gi, (entity, code) => {
+  if (code[0] !== '#') return ENTITIES[code.toLowerCase()]
+  const number = code[1].toLowerCase() === 'x' ? Number.parseInt(code.slice(2), 16) : Number.parseInt(code.slice(1), 10)
+  return number <= 0x10ffff ? String.fromCodePoint(number) : entity
+})
 
-/** Finds the tag for a field: { start, end, text } or null. */
-function findTag(html, field) {
-  if (field.tag === 'title') {
-    const m = /<title\b[^>]*>([\s\S]*?)<\/title\s*>/i.exec(html)
-    return m ? { start: m.index, end: m.index + m[0].length, text: m[0], value: unesc(m[1].trim()) } : null
+const RAW_TEXT = new Set(['script', 'style', 'textarea'])
+const ATTRIBUTE = /([^\s"'<>/=]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/y
+
+/**
+ * Start tags in the document head, in order: { name, start, end, attrs }. Quoted attribute values may contain `>`;
+ * comments and script/style/textarea bodies are skipped; scanning stops at </head> or <body>.
+ */
+function headTags(html) {
+  const tags = []
+  let i = 0
+  while (i < html.length) {
+    const lt = html.indexOf('<', i)
+    if (lt < 0) break
+    if (html.startsWith('<!--', lt)) {
+      const close = html.indexOf('-->', lt + 4)
+      i = close < 0 ? html.length : close + 3
+      continue
+    }
+    if (/^<\/head\b/i.test(html.slice(lt, lt + 7))) break
+    const open = /^<([a-z][\w:-]*)/i.exec(html.slice(lt, lt + 64))
+    if (!open) { i = lt + 1; continue }
+    const name = open[1].toLowerCase()
+    if (name === 'body') break
+    const attrs = {}
+    let j = lt + open[0].length
+    while (j < html.length) {
+      while (j < html.length && /[\s/]/.test(html[j])) j++
+      if (html[j] === '>') break
+      ATTRIBUTE.lastIndex = j
+      const a = ATTRIBUTE.exec(html)
+      if (!a) { j++; continue }
+      const key = a[1].toLowerCase()
+      if (!(key in attrs)) attrs[key] = a[2] ?? a[3] ?? a[4] ?? ''
+      j = ATTRIBUTE.lastIndex
+    }
+    const end = Math.min(j + 1, html.length)
+    tags.push({ name, start: lt, end, attrs })
+    i = end
+    if (RAW_TEXT.has(name)) {
+      const close = html.toLowerCase().indexOf('</' + name, end)
+      i = close < 0 ? html.length : close
+    }
   }
-  const re = new RegExp(`<${field.tag}\\b[^>]*?\\b${field.attr}\\s*=\\s*(["'])${escRe(field.name)}\\1[^>]*>`, 'i')
-  const m = re.exec(html)
-  if (!m) return null
-  const valueAttr = field.value ?? 'content'
-  const v = new RegExp(`\\b${valueAttr}\\s*=\\s*(["'])([\\s\\S]*?)\\1`, 'i').exec(m[0])
-  return { start: m.index, end: m.index + m[0].length, text: m[0], value: v ? unesc(v[2]) : '' }
+  return tags
+}
+
+/** Finds the tag for a field: { start, end, text, value } or null. */
+function findTag(html, field) {
+  const tags = headTags(html)
+  if (field.tag === 'title') {
+    const open = tags.find((t) => t.name === 'title')
+    if (!open) return null
+    const close = /<\/title\s*>/i.exec(html.slice(open.end))
+    if (!close) return null
+    const end = open.end + close.index + close[0].length
+    return { start: open.start, end, text: html.slice(open.start, end), value: unesc(html.slice(open.end, open.end + close.index).trim()) }
+  }
+  const tag = tags.find((t) => t.name === field.tag
+    && (t.attrs[field.attr] ?? '').toLowerCase().split(/\s+/).includes(field.name))
+  if (!tag) return null
+  return { start: tag.start, end: tag.end, text: html.slice(tag.start, tag.end), value: unesc(tag.attrs[field.value ?? 'content'] ?? '') }
 }
 
 export function parseHead(html) {
